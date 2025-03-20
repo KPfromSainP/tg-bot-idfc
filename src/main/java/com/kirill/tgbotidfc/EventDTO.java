@@ -8,11 +8,11 @@ import java.util.List;
 public class EventDTO implements PrintableDTO {
     private long id;
     private String title;
-    private List<TaskDTO> tasks;
+    private List<ParticipantDTO> participants;
 
-    public EventDTO(long id, String title, List<TaskDTO> tasks) {
+    public EventDTO(long id, String title, List<ParticipantDTO> participants) {
         this.id = id;
         this.title = title;
-        this.tasks = tasks;
+        this.participants = participants;
     }
 }

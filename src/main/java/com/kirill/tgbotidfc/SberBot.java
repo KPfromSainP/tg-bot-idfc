@@ -5,6 +5,7 @@ import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
 import org.telegram.telegrambots.longpolling.starter.SpringLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -20,6 +21,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static java.lang.Math.toIntExact;
 
 @Component
 public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer {
@@ -67,6 +70,14 @@ public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer 
         }
     }
 
+    private void execute(final DeleteMessage msg) {
+        try {
+            telegramClient.execute(msg);
+        } catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     @Override
     public void consume(List<Update> updates) {
@@ -77,76 +88,72 @@ public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer 
                 String text = message.getText();
 
                 if (text.equals("/start")) {
-                    stateMachine.sendEvent(chatId, Event.START);
+                    stateMachine.sendEvent(chatId, UserInput.START);
                     execute(sendMessage(chatId, "Добро пожаловать! Введите /menu для продолжения."));
                 }
                 if (text.equals("/menu")) {
-                    stateMachine.sendEvent(chatId, Event.MENU);
+                    stateMachine.sendEvent(chatId, UserInput.MENU);
                     execute(createMenuKeyboard(chatId));
                 } else {
+                    // TODO получить ивент мб
                     State userState = stateMachine.getUserState(chatId);
-                    SendMessage msg = menuOptions(chatId, text);
-                    if (msg != null) {
-                        execute(msg);
+                    SendMessage menu = menuOptions(chatId, text);
+                    TaskDTO task = dataTasks.get(chatId);
+                    if (menu != null) {
+                        execute(menu);
+                        if (stateMachine.getUserState(chatId) == State.MENU) {
+                            execute(createMenuKeyboard(chatId));
+                        }
                         continue;
-                    }
-                    if (userState == State.ANSWERING_ID_CREATE) {
-                        // TODO и проверяем есть ли такое мероприятие в беке
-                        TaskDTO task = new TaskDTO(Long.parseLong(text));
-                        dataTasks.put(chatId, task);
-                        stateMachine.sendEvent(chatId, Event.ANSWERED_ID_CREATE);
-                        execute(sendMessage(chatId, "Хорошо, введите название задачи"));
                     } else if (userState == State.CREATING_TASK_TITLE) {
-                        TaskDTO task = dataTasks.get(chatId);
                         task.setTitle(text);
-                        dataTasks.put(chatId, task);
-                        stateMachine.sendEvent(chatId, Event.CREATE_TASK_TITLE);
+                        stateMachine.sendEvent(chatId, UserInput.CREATE_TASK_TITLE);
                         execute(sendMessage(chatId, "Отлично, введите описание задачи"));
                     } else if (userState == State.CREATING_TASK_DESCRIPTION) {
-                        TaskDTO task = dataTasks.get(chatId);
                         task.setDescription(text);
-                        dataTasks.put(chatId, task);
-                        stateMachine.sendEvent(chatId, Event.CREATE_TASK_DESCRIPTION);
-                        execute(sendMessage(chatId, "Превосходно, введите ID ответственного"));
-                    } else if (userState == State.CREATING_TASK_ASSIGNED) {
-                        TaskDTO task = dataTasks.get(chatId);
-                        task.setAssignedID(Long.parseLong(text));
-                        dataTasks.put(chatId, task);
-                        stateMachine.sendEvent(chatId, Event.CREATE_TASK_ASSIGNED);
-                        execute(sendMessage(chatId, "Замечательно, введите примерную сумму"));
+                        stateMachine.sendEvent(chatId, UserInput.CREATE_TASK_DESCRIPTION);
+                        SendMessage msg = sendMessage(chatId, "Превосходно, введите ID ответственного");
+                        // TODO myEventsDTO.get(0) zalupa
+                        List<ParticipantDTO> participants = myEventsDTO.get(0).getParticipants();
+                        String[] participantsNames = new String[participants.size()];
+                        String[] participantsIDs = new String[participants.size()];
+                        for (int i = 0; i < participants.size(); i++) {
+                            participantsNames[i] = participants.get(i).getName();
+                            participantsIDs[i] = String.valueOf(participants.get(i).getId());
+                        }
+                        msg.setReplyMarkup(createInlineKeyboard(participantsNames, participantsIDs, 2));
+                        execute(msg);
                     } else if (userState == State.CREATING_TASK_PRICE) {
-                        TaskDTO task = dataTasks.get(chatId);
-                        task.setExpenses(Double.parseDouble(text));
-                        dataTasks.put(chatId, task);
-                        // TODO ОТПРАВИТЬ ТАСКУ
-                        stateMachine.sendEvent(chatId, Event.CREATE_TASK_PRICE);
-                        execute(sendMessage(chatId, "Задача создана!"));
-                        execute(createMenuKeyboard(chatId));
-                    } else if (userState == State.ANSWERING_ID_FAST) {
-                        // TODO и проверяем есть ли такое мероприятие в беке
-                        TaskDTO task = new TaskDTO(Long.parseLong(text));
-                        dataTasks.put(chatId, task);
-                        stateMachine.sendEvent(chatId, Event.ANSWERED_ID_CREATE_FAST);
-                        execute(sendMessage(chatId, "Хорошо, введите название задачи"));
+                        try {
+                            task.setExpenses(Double.parseDouble(text));
+                            // TODO ОТПРАВИТЬ ТАСКУ
+                            stateMachine.sendEvent(chatId, UserInput.CREATE_TASK_PRICE);
+                            execute(sendMessage(chatId, "Задача создана!"));
+                            execute(createMenuKeyboard(chatId));
+                        } catch (NumberFormatException e) {
+                            execute(sendMessage(chatId, "Введите число, плиииз"));
+                        }
                     } else if (userState == State.FAST_TITLE) {
-                        TaskDTO task = dataTasks.get(chatId);
                         task.setTitle(text);
-                        dataTasks.put(chatId, task);
-                        stateMachine.sendEvent(chatId, Event.FAST_TITLE);
+                        stateMachine.sendEvent(chatId, UserInput.FAST_TITLE);
                         execute(sendMessage(chatId, "Отлично, введите сумму денег, которую вы потратили"));
                     } else if (userState == State.FAST_PRICE) {
-                        TaskDTO task = dataTasks.get(chatId);
-                        task.setExpenses(Double.parseDouble(text));
-                        dataTasks.put(chatId, task);
-                        // TODO ОТПРАВИТЬ ТАСКУ
-                        stateMachine.sendEvent(chatId, Event.FAST_PRICE);
-                        execute(sendMessage(chatId, "Задача обработана!"));
-                        execute(createMenuKeyboard(chatId));
+                        try {
+                            task.setExpenses(Double.parseDouble(text));
+                            // TODO ОТПРАВИТЬ ТАСКУ
+                            stateMachine.sendEvent(chatId, UserInput.FAST_PRICE);
+                            execute(sendMessage(chatId, "Задача обработана!"));
+                            execute(createMenuKeyboard(chatId));
+                        } catch (NumberFormatException e) {
+                            execute(sendMessage(chatId, "Введите число, плиииз"));
+                        }
                     }
+                    dataTasks.put(chatId, task);
                 }
             } else if (update.hasCallbackQuery()) {
                 String callData = update.getCallbackQuery().getData();
                 long chatId = update.getCallbackQuery().getMessage().getChatId();
+                long messageId = update.getCallbackQuery().getMessage().getMessageId();
                 State userState = stateMachine.getUserState(chatId);
                 if (userState == State.ANSWERING_ID_GET) {
                     long eventID = Long.parseLong(callData);
@@ -163,7 +170,7 @@ public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer 
                         execute(sendMessage(chatId, "Такого мероприятия нет. Введите заново."));
                         continue;
                     } else {
-                        List<TaskDTO> myTasks = enterEvent.getTasks();
+                        List<TaskDTO> myTasks = myTasksDTO;
                         botText = "Ваши задачи на мероприятие *" + enterEvent.getTitle() + "*:" + System.lineSeparator();
                         StringBuilder resultSB = new StringBuilder();
                         for (PrintableDTO element : myTasks) {
@@ -172,16 +179,32 @@ public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer 
                         botText += resultSB;
                         botText = myTasks.isEmpty() ? "У вас нет активных задач" : botText;
                     }
-                    stateMachine.sendEvent(chatId, Event.ANSWERED_ID_GET);
+                    stateMachine.sendEvent(chatId, UserInput.ANSWERED_ID_GET);
+                    DeleteMessage deleteMessage = new DeleteMessage(String.valueOf(chatId), toIntExact(messageId));
+                    execute(deleteMessage);
                     execute(sendMessage(chatId, botText));
                     execute(createMenuKeyboard(chatId));
                 } else if (userState == State.ANSWERING_ID_CREATE || userState == State.ANSWERING_ID_FAST) {
                     // TODO проверить существование меро И членствование юзера в меро
                     long eventID = Long.parseLong(callData);
+                    String eventTitle = "pizdec no such eventa";
+                    for (EventDTO eventDTO : myEventsDTO) {
+                        if (eventDTO.getId() == eventID) {
+                            eventTitle = eventDTO.getTitle();
+                            break;
+                        }
+                    }
                     TaskDTO task = new TaskDTO(eventID);
                     dataTasks.put(chatId, task);
-                    stateMachine.sendEvent(chatId, userState == State.ANSWERING_ID_CREATE ? Event.ANSWERED_ID_CREATE : Event.ANSWERED_ID_CREATE_FAST);
-                    execute(sendMessage(chatId, "Хорошо, введите название задачи"));
+                    stateMachine.sendEvent(chatId, userState == State.ANSWERING_ID_CREATE ? UserInput.ANSWERED_ID_CREATE : UserInput.ANSWERED_ID_CREATE_FAST);
+                    DeleteMessage deleteMessage = new DeleteMessage(String.valueOf(chatId), toIntExact(messageId));
+                    execute(deleteMessage);
+                    execute(sendMessage(chatId, "Хорошо, введите название задачи для мероприятия *" + eventTitle + "*"));
+                } else if (userState == State.CREATING_TASK_ASSIGNED) {
+                    TaskDTO task = dataTasks.get(chatId);
+                    task.setAssignedID(Long.parseLong(callData));
+                    stateMachine.sendEvent(chatId, UserInput.CREATE_TASK_ASSIGNED);
+                    execute(sendMessage(chatId, "Замечательно, введите примерную сумму"));
                 }
             }
         }
@@ -209,18 +232,15 @@ public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer 
         return message;
     }
 
-    private InlineKeyboardMarkup createInlineKeyboardID(long[] ids) {
-        // я размещаю по 5 кнопок в ряду
-        // максимум рядов - 10 штук => ids.length <= 50
-        // если больше то это уже дрочь получается
+    private InlineKeyboardMarkup createInlineKeyboard(String[] inlineElementsName, String[] inlineData, int width) {
         List<InlineKeyboardRow> keyboard = new ArrayList<>();
         InlineKeyboardRow row;
         InlineKeyboardButton btn;
-        for (int i = 0; i < ids.length; i += 5) {
+        for (int i = 0; i < inlineElementsName.length; i += width) {
             row = new InlineKeyboardRow();
-            for (int j = i; j < i + 5 && j < ids.length; j++) {
-                btn = new InlineKeyboardButton(String.valueOf(ids[j]));
-                btn.setCallbackData(String.valueOf(ids[j]));
+            for (int j = i; j < i + width && j < inlineElementsName.length; j++) {
+                btn = new InlineKeyboardButton(String.valueOf(inlineElementsName[j]));
+                btn.setCallbackData(String.valueOf(inlineData[j]));
                 row.add(btn);
             }
             keyboard.add(row);
@@ -230,10 +250,10 @@ public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer 
 
     private SendMessage menuOptions(long chatId, String text) {
         switch (text) {
-            case menuBtn1, menuBtn2 -> stateMachine.sendEvent(chatId, Event.MENU);
-            case menuBtn3 -> stateMachine.sendEvent(chatId, Event.ANSWERING_ID_GET);
-            case menuBtn4 -> stateMachine.sendEvent(chatId, Event.CREATE_TASK);
-            case menuBtn5 -> stateMachine.sendEvent(chatId, Event.FAST_TASK);
+            case menuBtn1, menuBtn2 -> stateMachine.sendEvent(chatId, UserInput.MENU);
+            case menuBtn3 -> stateMachine.sendEvent(chatId, UserInput.ANSWERING_ID_GET);
+            case menuBtn4 -> stateMachine.sendEvent(chatId, UserInput.CREATE_TASK);
+            case menuBtn5 -> stateMachine.sendEvent(chatId, UserInput.FAST_TASK);
         }
         if (text.equals(menuBtn1) || text.equals(menuBtn3) || text.equals(menuBtn4) || text.equals(menuBtn5)) {
             // TODO получить список мероприятий (пока что мок myEventsDTO)
@@ -258,11 +278,11 @@ public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer 
                     userEvents += " узнать свой список задач";
                 }
                 SendMessage msg = sendMessage(chatId, userEvents);
-                long[] ids = new long[myEventsDTO.size()];
+                String[] ids = new String[myEventsDTO.size()];
                 for (int i = 0; i < myEventsDTO.size(); i++) {
-                    ids[i] = myEventsDTO.get(i).getId();
+                    ids[i] = String.valueOf(myEventsDTO.get(i).getId());
                 }
-                msg.setReplyMarkup(createInlineKeyboardID(ids));
+                msg.setReplyMarkup(createInlineKeyboard(ids, ids, 5));
                 return msg;
             } else {
                 return sendMessage(chatId, userEvents);

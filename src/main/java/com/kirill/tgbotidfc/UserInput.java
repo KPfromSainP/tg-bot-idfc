@@ -3,7 +3,7 @@ package com.kirill.tgbotidfc;
 import lombok.Getter;
 
 @Getter
-public enum Event {
+public enum UserInput {
     START("start"),
     MENU("хотим в меню"),
     ANSWERING_ID_GET("нажали на получение Мои задачи в мероп в меню"),
@@ -25,7 +25,7 @@ public enum Event {
 
     private final String name;
 
-    Event(String name) {
+    UserInput(String name) {
         this.name = name;
     }
 }
