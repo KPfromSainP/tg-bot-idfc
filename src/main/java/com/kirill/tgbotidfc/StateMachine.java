@@ -27,12 +27,9 @@ public class StateMachine {
                 case ANSWERED_ID_CREATE_FAST -> eventStates.put(Event.ANSWERED_ID_CREATE_FAST, State.FAST_TITLE);
                 case FAST_TITLE -> eventStates.put(Event.FAST_TITLE, State.FAST_PRICE);
                 case FAST_PRICE -> eventStates.put(Event.FAST_PRICE, State.MENU);
-                default -> throw new IllegalStateException("Unexpected event: " + event.getName());
+                default -> throw new IllegalStateException("Unexpected event: " + event + " " + event.getName());
             }
         }
-        List<Event> def = new ArrayList<>();
-        def.add(Event.START);
-        def.add(Event.MENU);
         for (State state : State.values()) {
             switch (state) {
                 case NO_STATE -> availableEvents.put(State.NO_STATE, List.of(Event.values()));
@@ -46,7 +43,7 @@ public class StateMachine {
                 case ANSWERING_ID_FAST -> availableEvents.put(state, List.of(Event.ANSWERED_ID_CREATE_FAST, Event.MENU));
                 case FAST_TITLE -> availableEvents.put(state, List.of(Event.FAST_TITLE, Event.MENU));
                 case FAST_PRICE -> availableEvents.put(state, List.of(Event.FAST_PRICE, Event.MENU));
-                default -> throw new IllegalStateException("Unexpected state: " + state.getName());
+                default -> throw new IllegalStateException("Unexpected state: " + state + " " + state.getName());
             }
         }
     }

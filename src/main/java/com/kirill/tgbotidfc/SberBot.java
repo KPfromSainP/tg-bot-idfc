@@ -7,7 +7,10 @@ import org.telegram.telegrambots.longpolling.starter.SpringLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -87,37 +90,7 @@ public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer 
                         execute(msg);
                         continue;
                     }
-                    if (userState == State.ANSWERING_ID_GET) {
-                        // text == event_id
-                        // хотим получить от бека список тасок по юзеру по мероприятию text
-                        // получить список моих ивентов весь код это моки блять
-                        long eventID = Long.parseLong(text);
-                        EventDTO enterEvent = null;
-                        for (EventDTO eventDTO : myEventsDTO) {
-                            if (eventDTO.getId() == eventID) {
-                                enterEvent = eventDTO;
-                                break;
-                            }
-                        }
-                        String botText;
-                        if (enterEvent == null) {
-                            execute(sendMessage(chatId, "Такого мероприятия нет. Введите заново."));
-                            continue;
-                        } else {
-                            // только здесь я получил таски и то ! не только мои, а все
-                            List<TaskDTO> myTasks = enterEvent.getTasks();
-                            botText = "Ваши задачи на мероприятие " + enterEvent.getTitle() + ":" + System.lineSeparator();
-                            StringBuilder resultSB = new StringBuilder();
-                            for (PrintableDTO element : myTasks) {
-                                resultSB.append('`').append(element.getId()).append("`: ").append(element.getTitle()).append(System.lineSeparator());
-                            }
-                            botText += resultSB;
-                            botText = myTasks.isEmpty() ? "У вас нет активных задач" : botText;
-                        }
-                        stateMachine.sendEvent(chatId, Event.ANSWERED_ID_GET);
-                        execute(sendMessage(chatId, botText));
-                        execute(createMenuKeyboard(chatId));
-                    } else if (userState == State.ANSWERING_ID_CREATE) {
+                    if (userState == State.ANSWERING_ID_CREATE) {
                         // TODO и проверяем есть ли такое мероприятие в беке
                         TaskDTO task = new TaskDTO(Long.parseLong(text));
                         dataTasks.put(chatId, task);
@@ -171,15 +144,52 @@ public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer 
                         execute(createMenuKeyboard(chatId));
                     }
                 }
+            } else if (update.hasCallbackQuery()) {
+                String callData = update.getCallbackQuery().getData();
+                long chatId = update.getCallbackQuery().getMessage().getChatId();
+                State userState = stateMachine.getUserState(chatId);
+                if (userState == State.ANSWERING_ID_GET) {
+                    long eventID = Long.parseLong(callData);
+                    // TODO myTasks получить хочется
+                    EventDTO enterEvent = null;
+                    for (EventDTO eventDTO : myEventsDTO) {
+                        if (eventDTO.getId() == eventID) {
+                            enterEvent = eventDTO;
+                            break;
+                        }
+                    }
+                    String botText;
+                    if (enterEvent == null) {
+                        execute(sendMessage(chatId, "Такого мероприятия нет. Введите заново."));
+                        continue;
+                    } else {
+                        List<TaskDTO> myTasks = enterEvent.getTasks();
+                        botText = "Ваши задачи на мероприятие *" + enterEvent.getTitle() + "*:" + System.lineSeparator();
+                        StringBuilder resultSB = new StringBuilder();
+                        for (PrintableDTO element : myTasks) {
+                            resultSB.append('`').append(element.getId()).append("`: ").append(element.getTitle()).append(System.lineSeparator());
+                        }
+                        botText += resultSB;
+                        botText = myTasks.isEmpty() ? "У вас нет активных задач" : botText;
+                    }
+                    stateMachine.sendEvent(chatId, Event.ANSWERED_ID_GET);
+                    execute(sendMessage(chatId, botText));
+                    execute(createMenuKeyboard(chatId));
+                } else if (userState == State.ANSWERING_ID_CREATE || userState == State.ANSWERING_ID_FAST) {
+                    // TODO проверить существование меро И членствование юзера в меро
+                    long eventID = Long.parseLong(callData);
+                    TaskDTO task = new TaskDTO(eventID);
+                    dataTasks.put(chatId, task);
+                    stateMachine.sendEvent(chatId, userState == State.ANSWERING_ID_CREATE ? Event.ANSWERED_ID_CREATE : Event.ANSWERED_ID_CREATE_FAST);
+                    execute(sendMessage(chatId, "Хорошо, введите название задачи"));
+                }
             }
         }
     }
 
     private SendMessage createMenuKeyboard(long chatId) {
         SendMessage message = new SendMessage("" + chatId, "Меню");
-
         List<KeyboardRow> keyboard = new ArrayList<>();
-
         KeyboardRow row = new KeyboardRow();
         row.add(new KeyboardButton(menuBtn1));
         keyboard.add(row);
@@ -199,6 +209,25 @@ public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer 
         return message;
     }
 
+    private InlineKeyboardMarkup createInlineKeyboardID(long[] ids) {
+        // я размещаю по 5 кнопок в ряду
+        // максимум рядов - 10 штук => ids.length <= 50
+        // если больше то это уже дрочь получается
+        List<InlineKeyboardRow> keyboard = new ArrayList<>();
+        InlineKeyboardRow row;
+        InlineKeyboardButton btn;
+        for (int i = 0; i < ids.length; i += 5) {
+            row = new InlineKeyboardRow();
+            for (int j = i; j < i + 5 && j < ids.length; j++) {
+                btn = new InlineKeyboardButton(String.valueOf(ids[j]));
+                btn.setCallbackData(String.valueOf(ids[j]));
+                row.add(btn);
+            }
+            keyboard.add(row);
+        }
+        return new InlineKeyboardMarkup(keyboard);
+    }
+
     private SendMessage menuOptions(long chatId, String text) {
         switch (text) {
             case menuBtn1, menuBtn2 -> stateMachine.sendEvent(chatId, Event.MENU);
@@ -207,7 +236,10 @@ public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer 
             case menuBtn5 -> stateMachine.sendEvent(chatId, Event.FAST_TASK);
         }
         if (text.equals(menuBtn1) || text.equals(menuBtn3) || text.equals(menuBtn4) || text.equals(menuBtn5)) {
-            // получить список мероприятий
+            // TODO получить список мероприятий (пока что мок myEventsDTO)
+            if (myEventsDTO.isEmpty()) {
+                return sendMessage(chatId, "У вас нет активных мероприятий");
+            }
             String userEvents = "Ваши мероприятия: " + System.lineSeparator();
             StringBuilder resultSB = new StringBuilder();
             for (PrintableDTO element : myEventsDTO) {
@@ -225,18 +257,27 @@ public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer 
                 } else {
                     userEvents += " узнать свой список задач";
                 }
+                SendMessage msg = sendMessage(chatId, userEvents);
+                long[] ids = new long[myEventsDTO.size()];
+                for (int i = 0; i < myEventsDTO.size(); i++) {
+                    ids[i] = myEventsDTO.get(i).getId();
+                }
+                msg.setReplyMarkup(createInlineKeyboardID(ids));
+                return msg;
+            } else {
+                return sendMessage(chatId, userEvents);
             }
-            userEvents = userEvents.isEmpty() ? "У вас нет активных мероприятий" : userEvents;
-            return sendMessage(chatId, userEvents);
         } else if (text.equals(menuBtn2)) {
-            // получить список задач всех
+            // TODO получить список задач всех (пока что мок myTasksDTO)
+            if (myTasksDTO.isEmpty()) {
+                return sendMessage(chatId, "У вас нет активных задач");
+            }
             String usersTasks = "Ваши задачи по всем мероприятиям: " + System.lineSeparator();
             StringBuilder resultSB = new StringBuilder();
             for (PrintableDTO element : myTasksDTO) {
-                resultSB.append(element.getTitle()).append(System.lineSeparator());
+                resultSB.append("- ").append(element.getTitle()).append(System.lineSeparator());
             }
             usersTasks += resultSB;
-            usersTasks = usersTasks.isEmpty() ? "У вас нет активных задач" : usersTasks;
             return sendMessage(chatId, usersTasks);
         }
         return null;
