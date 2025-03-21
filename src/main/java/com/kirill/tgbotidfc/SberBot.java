@@ -39,10 +39,6 @@ public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer 
 
     @Override
     public String getBotToken() {
-        // захерачить токен в переменные окружения
-        // export BOT_TOKEN = {YOUR_BOT_TOKEN}
-        // ||
-        // idea -> edit configuration -> modify options -> environment var - > BOT_TOKEN=TOKEN
         return System.getenv("BOT_TOKEN");
     }
 
@@ -51,7 +47,7 @@ public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer 
         return this;
     }
 
-    private void execute(BotApiMethod<?> message) {
+    public void execute(BotApiMethod<?> message) {
         try {
             telegramClient.execute(message);
         } catch (TelegramApiException e) {
@@ -255,7 +251,7 @@ public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer 
         return null;
     }
 
-    private SendMessage sendMessage(long chatId, String text) {
+    public SendMessage sendMessage(long chatId, String text) {
         SendMessage msg = new SendMessage("" + chatId, text);
         msg.enableMarkdown(true);
         return msg;
