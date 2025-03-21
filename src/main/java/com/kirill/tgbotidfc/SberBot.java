@@ -40,7 +40,7 @@ public class SberBot implements SpringLongPollingBot, LongPollingUpdateConsumer 
     @Override
     public String getBotToken() {
         // захерачить токен в переменные окружения
-        // export VARIABLE_NAME = {YOUR_BOT_TOKEN}
+        // export BOT_TOKEN = {YOUR_BOT_TOKEN}
         // ||
         // idea -> edit configuration -> modify options -> environment var - > BOT_TOKEN=TOKEN
         return System.getenv("BOT_TOKEN");
