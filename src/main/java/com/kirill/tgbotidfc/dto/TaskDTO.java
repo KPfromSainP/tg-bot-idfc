@@ -1,9 +1,8 @@
-package com.kirill.tgbotidfc;
+package com.kirill.tgbotidfc.dto;
 
 import lombok.Data;
-
 @Data
-public class TaskDTO {
+public class TaskDTO implements Printable {
     private long id;
     private String title;
     private String description;

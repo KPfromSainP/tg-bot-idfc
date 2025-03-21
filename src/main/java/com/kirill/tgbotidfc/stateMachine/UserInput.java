@@ -1,4 +1,4 @@
-package com.kirill.tgbotidfc;
+package com.kirill.tgbotidfc.stateMachine;
 
 import lombok.Getter;
 
@@ -6,6 +6,7 @@ import lombok.Getter;
 public enum UserInput {
     START("start"),
     MENU("хотим в меню"),
+
     ANSWERING_ID_GET("нажали на получение Мои задачи в мероп в меню"),
     ANSWERED_ID_GET("написали id мероприятия боту -> в меню"),
 
@@ -18,8 +19,8 @@ public enum UserInput {
 
     FAST_TASK("хотим создать быструю таску из меню -> написать id меро"),
     ANSWERED_ID_CREATE_FAST("написали id меро боту -> писать тайтл"),
-    FAST_TITLE("написали тайтл -> писать прайс"),
-    FAST_PRICE("написали прайс -> в меню"),
+    CREATE_FAST_TITLE("написали тайтл -> писать прайс"),
+    CREATE_FAST_PRICE("написали прайс -> в меню"),
 
     ;
 

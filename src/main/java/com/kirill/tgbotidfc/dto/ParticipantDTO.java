@@ -1,4 +1,4 @@
-package com.kirill.tgbotidfc;
+package com.kirill.tgbotidfc.dto;
 
 import lombok.Getter;
 

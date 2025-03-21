@@ -1,11 +1,11 @@
-package com.kirill.tgbotidfc;
+package com.kirill.tgbotidfc.stateMachine;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.kirill.tgbotidfc.UserInput.*;
+import static com.kirill.tgbotidfc.stateMachine.UserInput.*;
 
 public class StateMachine {
     private final Map<Long, State> userStates = new HashMap<>();
@@ -18,7 +18,7 @@ public class StateMachine {
         return lstCopy;
     }
 
-    public StateMachine() {
+     public StateMachine() {
         for (UserInput event : values()) {
             switch (event) {
                 case START -> eventStates.put(START, State.MENU);
@@ -33,8 +33,8 @@ public class StateMachine {
                 case CREATE_TASK_PRICE -> eventStates.put(CREATE_TASK_PRICE, State.MENU);
                 case FAST_TASK -> eventStates.put(FAST_TASK, State.ANSWERING_ID_FAST);
                 case ANSWERED_ID_CREATE_FAST -> eventStates.put(ANSWERED_ID_CREATE_FAST, State.FAST_TITLE);
-                case FAST_TITLE -> eventStates.put(FAST_TITLE, State.FAST_PRICE);
-                case FAST_PRICE -> eventStates.put(FAST_PRICE, State.MENU);
+                case CREATE_FAST_TITLE -> eventStates.put(CREATE_FAST_TITLE, State.FAST_PRICE);
+                case CREATE_FAST_PRICE -> eventStates.put(CREATE_FAST_PRICE, State.MENU);
                 default -> throw new IllegalStateException("Unexpected event: " + event + " " + event.getName());
             }
         }
@@ -45,7 +45,6 @@ public class StateMachine {
         menuOptions.add(FAST_TASK);
         for (State state : State.values()) {
             switch (state) {
-                case NO_STATE -> availableEvents.put(State.NO_STATE, menuOptions);
                 case MENU -> availableEvents.put(state, menuOptions);
                 case ANSWERING_ID_GET -> availableEvents.put(state, userInputs(menuOptions, ANSWERED_ID_GET));
                 case ANSWERING_ID_CREATE -> availableEvents.put(state, userInputs(menuOptions, ANSWERED_ID_CREATE));
@@ -54,27 +53,26 @@ public class StateMachine {
                 case CREATING_TASK_ASSIGNED -> availableEvents.put(state, userInputs(menuOptions, CREATE_TASK_ASSIGNED));
                 case CREATING_TASK_PRICE -> availableEvents.put(state, userInputs(menuOptions, CREATE_TASK_PRICE));
                 case ANSWERING_ID_FAST -> availableEvents.put(state, userInputs(menuOptions, ANSWERED_ID_CREATE_FAST));
-                case FAST_TITLE -> availableEvents.put(state, userInputs(menuOptions, FAST_TITLE));
-                case FAST_PRICE -> availableEvents.put(state, userInputs(menuOptions, FAST_PRICE));
+                case FAST_TITLE -> availableEvents.put(state, userInputs(menuOptions, CREATE_FAST_TITLE));
+                case FAST_PRICE -> availableEvents.put(state, userInputs(menuOptions, CREATE_FAST_PRICE));
                 default -> throw new IllegalStateException("Unexpected state: " + state + " " + state.getName());
             }
         }
     }
 
     public boolean sendEvent(long chatId, UserInput event) {
-        userStates.putIfAbsent(chatId, State.NO_STATE);
+        userStates.putIfAbsent(chatId, State.MENU);
+        System.out.println("-----------");
         System.out.println(event.getName());
-        System.out.println(userStates.get(chatId));
         if (!availableEvents.get(userStates.get(chatId)).contains(event)) {
             return false;
         }
         System.out.println(eventStates.get(event).getName());
         userStates.put(chatId, eventStates.get(event));
-        System.out.println(eventStates.get(event));
         return true;
     }
 
     public State getUserState(long chatId) {
-        return userStates.getOrDefault(chatId, State.NO_STATE);
+        return userStates.getOrDefault(chatId, State.MENU);
     }
 }

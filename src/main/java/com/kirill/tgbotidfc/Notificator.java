@@ -1,5 +1,7 @@
 package com.kirill.tgbotidfc;
 
+import static com.kirill.tgbotidfc.generate.Utils.createMessage;
+
 public class Notificator {
     final SberBot bot;
 
@@ -8,12 +10,12 @@ public class Notificator {
     }
 
     public void notificatorEventStart(long chatId, String eventTitle) {
-        bot.execute(bot.sendMessage(chatId, "У вас новое мероприятие, *" + eventTitle + "*! Не забудьте о нем!"));
+        bot.execute(createMessage(chatId, "У вас новое мероприятие, *" + eventTitle + "*! Не забудьте о нем!"));
     }
     public void notificatorEventEnd(long chatId, String eventTitle) {
-        bot.execute(bot.sendMessage(chatId, "Мероприятие *" + eventTitle + "* закончилось!"));
+        bot.execute(createMessage(chatId, "Мероприятие *" + eventTitle + "* закончилось!"));
     }
     public void notificatorNewTask(long chatId, String taskTitle, String taskDescription) {
-        bot.execute(bot.sendMessage(chatId, "Вам назначена задача *" + taskTitle + "*! Её описание: " + taskDescription));
+        bot.execute(createMessage(chatId, "Вам назначена задача *" + taskTitle + "*! Её описание: " + taskDescription));
     }
 }

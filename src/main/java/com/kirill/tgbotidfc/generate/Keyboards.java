@@ -1,4 +1,4 @@
-package com.kirill.tgbotidfc;
+package com.kirill.tgbotidfc.generate;
 
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
