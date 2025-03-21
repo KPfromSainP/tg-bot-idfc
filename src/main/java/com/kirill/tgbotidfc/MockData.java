@@ -20,6 +20,17 @@ public class MockData {
         List<ParticipantDTO> participantDTOs = new ArrayList<>();
         participantDTOs.add(new ParticipantDTO(0, "blue"));
         participantDTOs.add(new ParticipantDTO(1, "voo"));
+        participantDTOs.add(new ParticipantDTO(1, "vshoh"));
+        participantDTOs.add(new ParticipantDTO(1, "black"));
+        participantDTOs.add(new ParticipantDTO(1, "mrwhite"));
+        participantDTOs.add(new ParticipantDTO(1, "vova"));
+        participantDTOs.add(new ParticipantDTO(1, "goga"));
+        participantDTOs.add(new ParticipantDTO(1, "giga"));
+        participantDTOs.add(new ParticipantDTO(1, "tibate"));
+        participantDTOs.add(new ParticipantDTO(1, "lokoil"));
+        participantDTOs.add(new ParticipantDTO(1, "priceman"));
+        participantDTOs.add(new ParticipantDTO(1, "silver"));
+        participantDTOs.add(new ParticipantDTO(1, "silveh"));
 
         myEventsDTO.add(new EventDTO(361, "пивной разгон", participantDTOs)); // event1
         participantDTOs = new ArrayList<>();

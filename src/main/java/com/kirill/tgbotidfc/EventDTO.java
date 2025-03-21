@@ -5,7 +5,7 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class EventDTO implements PrintableDTO {
+public class EventDTO {
     private long id;
     private String title;
     private List<ParticipantDTO> participants;
