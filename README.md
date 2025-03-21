@@ -11,4 +11,4 @@
 
 ## ShowCase
 
-![](https://github.com/KPfromSainP/tg-bot-idfc/res/showcase.gif)
+![](https://github.com/KPfromSainP/tg-bot-idfc/blob/master/res/showcase.gif)
